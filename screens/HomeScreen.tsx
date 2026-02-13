@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Image, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Image, TouchableOpacity, StatusBar, Dimensions, Animated, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 import { PRIMARY_COLOR, SECONDARY_COLOR, PRODUCTS, CATEGORIES } from '../screens/constants';
@@ -7,30 +7,64 @@ import { AddButton } from '../screens/AddButton';
 
 const HomeScreen = ({ navigation }: any) => {
   
-  const renderProductItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      key={item.id} 
-      style={styles.productCard}
-      onPress={() => navigation.navigate('ProductDetails', { product: item })}
-    >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.productImg} />
-      </View>
-      <View >
-        
-        <Text style={styles.timeTag}>10 MINS</Text>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.productWeight}>{item.weight}</Text>
-        <View style={styles.priceRow}>
-          <View>
-            <Text style={styles.price}>₹{item.price}</Text>
-            {item.oldPrice && <Text style={styles.oldPrice}>₹{item.oldPrice}</Text>}
-          </View>
-          <AddButton item={item} />
+  // Custom Component for Animating the Image on Press
+  const ProductItem = ({ item, isGrid = false }: { item: any, isGrid?: boolean }) => {
+    // Animation Value
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 1.1, // Zoom in effect
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 1, // Return to normal
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    return (
+      <Pressable
+        key={item.id}
+        style={[styles.productCard, isGrid && styles.gridCard]} // Keeps your original UI structure
+        onPress={() => navigation.navigate('ProductDetails', { product: item })}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        {/* Animated Image Container */}
+        <View style={[styles.imageContainer, isGrid && styles.gridImageContainer]}>
+          <Animated.Image 
+            source={{ uri: item.image }} 
+            style={[
+              styles.productImg, 
+              isGrid && styles.gridProductImg, // Ensures fit in grid
+              { transform: [{ scale: scaleAnim }] } // Apply Scale Animation
+            ]} 
+          />
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View>
+          <Text style={styles.timeTag}>10 MINS</Text>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.productWeight}>{item.weight}</Text>
+          <View style={styles.priceRow}>
+            <View>
+              <Text style={styles.price}>₹{item.price}</Text>
+              {item.oldPrice && <Text style={styles.oldPrice}>₹{item.oldPrice}</Text>}
+            </View>
+            <AddButton item={item} />
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,7 +79,6 @@ const HomeScreen = ({ navigation }: any) => {
             <MaterialIcons name="keyboard-arrow-down" size={20} color="#374151" />
           </TouchableOpacity>
         </View>
-        
       </View>
 
       {/* 2. Search Bar */}
@@ -91,16 +124,18 @@ const HomeScreen = ({ navigation }: any) => {
         <View style={styles.listHeader}>
           <Text style={styles.sectionHeader}>Best Sellers</Text>
           <TouchableOpacity onPress={() => navigation.navigate('MainTabs',{screen : 'Categories'})} ><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
-          
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-          {PRODUCTS.map((item) => renderProductItem({ item }))}
+          {PRODUCTS.map((item) => <ProductItem key={item.id} item={item} isGrid={false} />)}
         </ScrollView>
+
+        {/* 6. Vertical 2-Column Grid: Listing Vegetable */}
         <View style={styles.listHeader}>
-          <Text style={styles.sectionHeader}>listing vegtable</Text></View>
-         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-          {PRODUCTS.map((item) => renderProductItem({ item }))}
-        </ScrollView>
+          <Text style={styles.sectionHeader}>listing vegtable</Text>
+        </View>
+        <View style={styles.gridContainer}>
+          {PRODUCTS.map((item) => <ProductItem key={item.id} item={item} isGrid={true} />)}
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -116,7 +151,6 @@ const styles = StyleSheet.create({
   boldTime: { fontSize: 12, fontWeight: '900' },
   locationRow: { flexDirection: 'row', alignItems: 'center' },
   locationText: { fontSize: 14, fontWeight: '600', color: '#374151', marginRight: 4 },
-  profileBtn: { padding: 4 },
   searchContainer: { paddingHorizontal: 16, marginBottom: 10 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 12, paddingHorizontal: 12, height: 46 },
   input: { flex: 1, marginLeft: 10, fontSize: 14 },
@@ -135,9 +169,63 @@ const styles = StyleSheet.create({
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
   seeAll: { color: PRIMARY_COLOR, fontWeight: '600', fontSize: 13 },
   horizontalList: { paddingHorizontal: 16, paddingBottom: 20 },
-  productCard: { width: 140, marginRight: 12, borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12, padding: 8, backgroundColor: '#fff' },
-  imageContainer: { height: 100, width: '100%', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  productImg: { width: 80, height: 80, resizeMode: 'contain' },
+  
+  // --- GRID CONTAINER ---
+  gridContainer: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    paddingHorizontal: 16, 
+    justifyContent: 'space-between' 
+  },
+  
+  // --- CARD STYLES ---
+  // Default Style (Horizontal List)
+  productCard: { 
+    width: 140, 
+    marginRight: 12, 
+    borderWidth: 1, 
+    borderColor: '#F3F4F6', 
+    borderRadius: 12, 
+    padding: 8, // Kept your original padding
+    backgroundColor: '#fff' 
+  },
+  
+  // Grid Override (Vertical List)
+  gridCard: {
+    width: '48%', // 2-Column layout
+    marginRight: 0,
+    marginBottom: 16,
+    // Note: We keep padding: 8 here as requested to maintain UI
+  },
+
+  // --- IMAGE STYLES ---
+  imageContainer: { 
+    height: 100, 
+    width: '100%', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginBottom: 8 
+  },
+  
+  gridImageContainer: {
+    height: 120, // Slightly taller for grid for better visibility
+    width: '100%',
+    marginBottom: 12 // A bit more space below image in grid
+  },
+
+  productImg: { 
+    width: 80, 
+    height: 80, 
+    resizeMode: 'contain' 
+  },
+  
+  gridProductImg: {
+    width: '100%', // Use full width of the container
+    height: '100%', // Use full height of the container
+    resizeMode: 'contain' // Ensures the whole image is seen
+  },
+
+  // --- TEXT STYLES ---
   timeTag: { fontSize: 9, backgroundColor: '#F3F4F6', alignSelf: 'flex-start', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4, fontWeight: '700', marginBottom: 4 },
   productName: { fontSize: 13, fontWeight: '600', color: '#374151', height: 36, marginBottom: 4 },
   productWeight: { fontSize: 12, color: '#9CA3AF', marginBottom: 8 },
